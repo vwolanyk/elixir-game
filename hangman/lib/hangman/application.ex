@@ -4,7 +4,7 @@ defmodule Hangman.Application do
 
   def start(_type, _args) do
     children = [
-      worker(Hangman.Server, [])
+      worker(Hangman.Game, [])
     ]
 
     options = [

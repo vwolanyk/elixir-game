@@ -7,29 +7,71 @@ defmodule Hangman.Game do
     used:       MapSet.new()
   )
 
+  # #################### SERVER CODE
+
+  use GenServer
+
+  # this is like an api into the server code - this kicks off the
+   # creates a new process that uses callbacks first is init
+
+  def start_link()  do
+    GenServer.start_link( __MODULE__, Dictionary.random_word)
+  end
+
+  def start_link(word)  do
+    GenServer.start_link( __MODULE__, word)
+  end
+
+  def init(word) do
+    {:ok, new_game(word) }
+  end
+
+  def handle_call({:make_move, guess}, _from, game) do
+      { game, tally } = game_make_move(game, guess)
+      { :reply, tally, game }
+  end
+
+  def handle_call({:tally}, _from, game) do
+      { :reply, game_tally(game), game }
+  end
+
+
+  # ################# API CODE
+  def rumble() do
+    {:ok, pid } = Supervisor.start_child(Hangman.Supervisor, [])
+    pid
+  end
+
+  def tally(game_pid) do
+    GenServer.call(game_pid, {:tally})
+  end
+
+  def make_move(game_pid, guess) do
+    GenServer.call(game_pid, {:make_move, guess})
+  end
+
+
+  # ################## GAME FUNCTIONALITY CODE
+
   def new_game(word) do
     %Hangman.Game{ letters: word |> String.codepoints }
   end
 
-  def new_game() do
-    new_game(Dictionary.random_word)
-  end
-
-  def make_move(game = %{ game_state: state }, _guess) when state in [:won, :lost] do
+  def game_make_move(game = %{ game_state: state }, _guess) when state in [:won, :lost] do
     game
     |> return_game_and_tally
   end
 
-  def make_move(game, guess) do
+  def game_make_move(game, guess) do
     accept_move(game, guess, MapSet.member?(game.used, guess))
     |> return_game_and_tally
   end
 
   defp return_game_and_tally(game) do
-    { game, tally(game) }
+    { game, game_tally(game) }
   end
 
-  def tally(game) do
+  def game_tally(game) do
     %{
       game_state:      game.game_state,
       turns_left:      game.turns_left,
